@@ -1,0 +1,138 @@
+//Optical Tachiometer: http://www.instructables.com/id/Arduino-Based-Optical-Tachometer/
+//Binary counter (with clunky binary function): http://www.electroschematics.com/9809/arduino-8-bit-binary-led/
+
+int blocked;           // variable to store the amount of times optivcal sensor is blocked by vinyl
+int ArduSensorValue;   // variable to store the value of the ArduSensor
+int lastSensorValue;   // variable to store the value of the ArduSensor
+int  BinButton = 2;     // pin to connect the binary BinButton
+int  GoSwitch = 4;      // pin to connect the start BinButton
+int  motor1 = 5;        // pin to connect to motor input 1 and 4
+int  motor2 = 6;        // pin to connect to motor input 2 and 3
+int  IRtrans = A0;      // pin to connect the IR transistor
+long time = 0;          // used for debounce
+long debounce = 100;    // how many ms to "debounce"
+
+volatile int presses;   // variable used for BinBinButton interupt
+volatile int senses;    // variable used for IR interupt
+
+int ledPin[] = {8,9,10,11,12};   // Array where the LEDs are connected
+const byte pinCount = 5;          // how many leds
+
+void setup()
+{
+  for (int i =0;i<5;i++)
+  {
+    pinMode(ledPin[i], OUTPUT);
+  }
+  pinMode(BinButton, INPUT);
+  pinMode(motor1, OUTPUT);
+  pinMode(motor2, OUTPUT);
+  pinMode(GoSwitch, INPUT_PULLUP);
+  /* use pin 2 which has interrupt 0 on Arduino UNO */
+  attachInterrupt(digitalPinToInterrupt(BinButton), count, LOW);
+  attachInterrupt(digitalPinToInterrupt(IRtrans), sense, FALLING); //this may need adjusted based on phototransistor function
+  Serial.begin(9600);
+}
+
+void loop() 
+{
+  if (presses<=31)
+  {
+    displayBinary(presses);
+    // Serial Print values
+    Serial.print(presses);
+    Serial.print("   ");
+    Serial.println(senses);
+    // Check if the GO switch has been pressed, and then run the car
+    if (digitalRead(GoSwitch) == LOW)
+    {
+     if(millis() - time > debounce) compete(presses);
+     time = millis();
+    }
+    delay(50); 
+  }else{
+   // loop from the lowest pin to the highest:
+   for (int thisPin = 0; thisPin < pinCount; thisPin++) {
+    // turn the pin on:
+    digitalWrite(ledPin[thisPin], HIGH);
+    delay(100);
+    // turn the pin off:
+    digitalWrite(ledPin[thisPin], LOW);
+    }
+  // loop from the highest pin to the lowest:
+  for (int thisPin = pinCount - 1; thisPin >= 0; thisPin--) {
+    // turn the pin on:
+    digitalWrite(ledPin[thisPin], HIGH);
+    delay(100);
+    // turn the pin off:
+    digitalWrite(ledPin[thisPin], LOW);
+    // Serial Print values
+    Serial.print(presses);
+    Serial.print("   ");
+    Serial.println(senses);
+  }
+  presses = 0;
+ }
+}
+
+/* function to run the car */
+void compete(int presses){ 
+  // test drive the car
+  delay(500);
+  while(blocked < 25){
+     ArduSensorValue=analogRead(0);
+  
+  int val = map(ArduSensorValue, 35, 950, 100, 0);  // convert the value
+  // to easily readable numbers
+  
+  Serial.print(ArduSensorValue);  // print the value on the Serial monitor
+  Serial.print("      ");
+  count(ArduSensorValue);
+  lastSensorValue = ArduSensorValue;
+  digitalWrite(motor1, HIGH);
+  digitalWrite(motor2, LOW); 
+  }
+  digitalWrite(motor1, LOW);
+  digitalWrite(motor2, HIGH);
+  delay(5);
+  digitalWrite(motor1, LOW);
+  digitalWrite(motor2, LOW);
+}
+
+void count(int SensorValue){
+  if(ArduSensorValue<900 && lastSensorValue>900){
+    blocked++;
+  }
+   Serial.println(blocked);
+}
+
+void displayBinary(byte numToShow)
+{
+  for (int i =0;i<5;i++)
+  {
+    if (bitRead(numToShow, i)==1)
+    {
+      digitalWrite(ledPin[i], HIGH); 
+    }
+    else
+    {
+      digitalWrite(ledPin[i], LOW); 
+    }
+  }
+}
+
+/* function to count the presses */
+void count() { 
+  detachInterrupt(digitalPinToInterrupt(IRtrans)); 
+  // we debounce the BinButton and increase the presses
+  if(millis() - time > debounce)  presses++;
+  time = millis();
+  senses = 0;
+  attachInterrupt(digitalPinToInterrupt(IRtrans), sense, FALLING); 
+}
+
+/* function to use the IR sensor */
+void sense() { 
+  // incriment the sense value up
+  senses++;
+}
