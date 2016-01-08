@@ -1,0 +1,213 @@
+//Optical Tachiometer: http://www.instructables.com/id/Arduino-Based-Optical-Tachometer/
+
+/* These constants determine the distances for the speed-up and full speed portions */
+int const halfmeterstart = 10; 
+int const eighthalfmeterfast = 100;
+
+/* These constants determine the distances for the slow down and stop incriments */
+int const ninemeterend       = 110;
+int const ninehalfmeterend   = 120;
+int const tenmeterend        = 130;
+int const tenhalfmeterend    = 140;     //all values in this section are presently untested
+int const elevenmeterend     = 150;
+int const elevenhalfmeterend = 160;
+int const twelvemeterend     = 180;
+
+/* These variables assign the pins of the various inputs and outputs */
+int  binaryout = 0;     // variable to store the binary value to run the car a specified distance
+int  pace      = 0;     // variable to store the speed of the motor during transitions
+int  BinButton = 2;     // pin to connect the binary Button
+int  IRtrans   = 3;     // pin to connect the optical tachiometer   https://www.fairchildsemi.com/application-notes/AN/AN-3005.pdf
+int  GoSwitch  = 4;     // pin to connect the start Button
+int  motor1    = 5;     // pin to connect to motor input 1 and 4
+int  motor2    = 6;     // pin to connect to motor input 2 and 3
+
+/* These variables assign the pins of the binary lights */
+int ledPin[] = {8,9,10,11,12};   // Array where the LEDs are connected
+const byte pinCount = 5;         // how many leds
+
+/* These constants determine the debonce parameters */
+long time = 0;          // used for debounce
+long debounce = 100;    // how many ms to "debounce"
+
+/* These constants must be 'volatile' to be used with the interrupt functions */
+volatile int presses;   // variable used for BinBinButton interupt
+volatile int senses;    // variable used for optical tachiometer
+
+
+
+void setup()
+{
+  /* Incriment through the binary lights, setting them each as outputs */
+  for (int i =0;i<5;i++)
+  {
+    pinMode(ledPin[i], OUTPUT);
+  }
+
+  /* Assign the inputs and outputs as such */
+  pinMode(BinButton, INPUT_PULLUP);
+  pinMode(IRtrans,   INPUT);
+  pinMode(GoSwitch,  INPUT_PULLUP);
+  pinMode(motor1,    OUTPUT);
+  pinMode(motor2,    OUTPUT);
+
+  /* use pin 2 which has interrupt 0 on Arduino UNO */
+  attachInterrupt(digitalPinToInterrupt(BinButton), count, LOW);
+  /* use pin 3 which has interrupt 1 on Arduino UNO */
+  attachInterrupt(digitalPinToInterrupt(IRtrans), sense, FALLING); //this may need adjusted based on phototransistor function
+  
+  Serial.begin(9600);
+}
+
+
+
+
+
+void loop() 
+{
+  if (presses<=8)
+  {
+    displayBinary(presses);
+    
+    // Serial Print values
+    Serial.print("Presses: ");
+    Serial.print(presses);
+    Serial.print("     Senses: ");
+    Serial.println(senses);
+    
+    // Check if the GO switch has been pressed, and then run the car
+    if (digitalRead(GoSwitch) == LOW)
+    {
+     if(millis() - time > debounce) compete(binaryout);
+     time = millis();
+    }
+
+    if (presses == 1){
+      binaryout == ninemeterend;
+    }    
+    if (presses == 2){
+      binaryout == ninehalfmeterend;
+    }
+    if (presses == 3){
+      binaryout == tenmeterend;
+    }
+    if (presses == 4){
+      binaryout == tenhalfmeterend;
+    }
+    if (presses == 5){
+      binaryout == elevenmeterend;
+    }
+    if (presses == 6){
+      binaryout == elevenhalfmeterend;
+    }  
+    if (presses == 7){
+      binaryout == twelvemeterend;
+    }
+
+    delay(50);
+    
+  }else{
+   // loop from the lowest pin to the highest:
+   for (int thisPin = 0; thisPin < pinCount; thisPin++) {
+    // turn the pin on:
+    digitalWrite(ledPin[thisPin], HIGH);
+    delay(100);
+    // turn the pin off:
+    digitalWrite(ledPin[thisPin], LOW);
+    }
+  // loop from the highest pin to the lowest:
+  for (int thisPin = pinCount - 1; thisPin >= 0; thisPin--) {
+    // turn the pin on:
+    digitalWrite(ledPin[thisPin], HIGH);
+    delay(100);
+    // turn the pin off:
+    digitalWrite(ledPin[thisPin], LOW);
+  }
+  presses = 0;
+ }
+}
+
+
+
+
+
+/* function to run the car */
+void compete(int binaryout){ 
+  /* Wait a half-second to move */
+  delay(500);
+
+  /* Get up to speed */
+  while(senses < halfmeterstart){
+  //make this fancy
+  for(int pace = 0; pace < 255; pace ++){
+  analogWrite(motor1, pace);
+  digitalWrite(motor2, LOW); 
+    }
+  } 
+
+  /* Over the timed interval, operate at full power */
+  while(senses >= halfmeterstart && senses < eighthalfmeterfast){
+  digitalWrite(motor1, HIGH);
+  digitalWrite(motor2, LOW); 
+  }
+  
+  /* Stop the car at the distance designated by the binary counter */
+  while(senses > halfmeterstart && senses > eighthalfmeterfast && senses < binaryout){
+  //make this fancy
+  for(int pace = 255; pace < 175; pace --){
+  analogWrite(motor1, pace);
+  digitalWrite(motor2, LOW); 
+    }
+  analogWrite(motor1, pace);
+  digitalWrite(motor2, LOW);
+  }  
+
+  /* reverse powerr for a more accurate stop */
+  digitalWrite(motor1, LOW);
+  digitalWrite(motor2, HIGH);
+  delay(250);
+  digitalWrite(motor1, LOW);
+  digitalWrite(motor2, LOW);
+  }
+
+
+
+
+
+void displayBinary(byte numToShow)
+{
+  for (int i =0;i<5;i++)
+  {
+    if (bitRead(numToShow, i)==1)
+    {
+      digitalWrite(ledPin[i], HIGH); 
+    }
+    else
+    {
+      digitalWrite(ledPin[i], LOW); 
+    }
+  }
+}
+
+
+
+
+/* function to count the presses */
+void count() { 
+  detachInterrupt(digitalPinToInterrupt(IRtrans)); 
+  // we debounce the BinButton and increase the presses
+  if(millis() - time > debounce)  presses++;
+  time = millis();
+  senses = 0;
+  attachInterrupt(digitalPinToInterrupt(IRtrans), sense, FALLING); 
+}
+
+
+
+
+
+/* function to use the IR sensor */
+void sense() { 
+  // incriment the sense value up
+  senses++;
+}
