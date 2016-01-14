@@ -1,0 +1,74 @@
+//Rotary Encoder Code
+
+int distance = 600;
+ 
+int relay1 = 4;
+int relay2 = 5;
+int relay3 = 6;
+int relay4 = 7;
+
+ int val; 
+ int encoder0PinA = 2;
+ int encoder0PinB = 3;
+ int encoder0Pos = 0;
+ int encoder0PinALast = LOW;
+ int n = LOW;
+
+// the setup function runs once when you press reset or power the board
+void setup() {
+  // initialize digital pin 13 as an output.
+  pinMode(relay1, OUTPUT);
+  pinMode(relay2, OUTPUT);
+  pinMode(relay3, OUTPUT);
+  pinMode(relay4, OUTPUT);
+  digitalWrite(relay1, HIGH);
+  digitalWrite(relay2, HIGH);
+  digitalWrite(relay3, HIGH);
+  digitalWrite(relay4, HIGH);
+
+  pinMode (encoder0PinA,INPUT_PULLUP);
+  pinMode (encoder0PinB,INPUT_PULLUP);
+  Serial.begin (9600);
+}
+
+// the loop function runs over and over again forever
+void loop() {
+   n = digitalRead(encoder0PinA);
+   if ((encoder0PinALast == LOW) && (n == HIGH)) {
+     if (digitalRead(encoder0PinB) == LOW) {
+       encoder0Pos--;
+     } else {
+       encoder0Pos++;
+     }
+     Serial.print (encoder0Pos);
+     Serial.println ("/");
+   } 
+   encoder0PinALast = n; 
+  if(encoder0Pos < (distance-40)){
+    forward();
+  }
+  if(encoder0Pos > (distance+40)){
+    backward();
+  }
+  if(encoder0Pos<(distance-39) || encoder0Pos > (distance+39)){
+    digitalWrite(relay4, HIGH);
+  }
+  
+}
+
+void forward(){
+
+  digitalWrite(relay4, HIGH);
+  digitalWrite(relay1, LOW);
+  digitalWrite(relay2, LOW);
+  digitalWrite(relay4, LOW);
+}
+
+void backward(){
+
+  encoder0PinALast = n;
+  digitalWrite(relay4, HIGH);
+  digitalWrite(relay1, HIGH);
+  digitalWrite(relay2, HIGH);
+  digitalWrite(relay4, LOW);
+}
