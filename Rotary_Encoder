@@ -1,74 +1,89 @@
-//Rotary Encoder Code
+//input pins
+const int encoder0PinA = 2;
+const int encoder0PinB = 3;
+const int BinButton    = A1;
+const int GoButton     = A2;
 
-int distance = 600;
- 
-int relay1 = 4;
-int relay2 = 5;
-int relay3 = 6;
-int relay4 = 7;
+//relay pins
+const int relay1       = 4;
+const int relay2       = 5;
+const int relay3       = 6;
+const int relay4       = 7;
 
- int val; 
- int encoder0PinA = 2;
- int encoder0PinB = 3;
- int encoder0Pos = 0;
- int encoder0PinALast = LOW;
- int n = LOW;
+//Binary LED pins -- get these from the fancy binary thing in the corvette code
 
-// the setup function runs once when you press reset or power the board
+volatile unsigned int encoder0Pos = 0;
+
 void setup() {
-  // initialize digital pin 13 as an output.
-  pinMode(relay1, OUTPUT);
-  pinMode(relay2, OUTPUT);
-  pinMode(relay3, OUTPUT);
-  pinMode(relay4, OUTPUT);
-  digitalWrite(relay1, HIGH);
-  digitalWrite(relay2, HIGH);
-  digitalWrite(relay3, HIGH);
-  digitalWrite(relay4, HIGH);
 
-  pinMode (encoder0PinA,INPUT_PULLUP);
-  pinMode (encoder0PinB,INPUT_PULLUP);
+  pinMode(encoder0PinA, INPUT_PULLUP); 
+  pinMode(encoder0PinB, INPUT_PULLUP);
+  pinMode(BinButton, INPUT_PULLUP); 
+  pinMode(GoButton, INPUT_PULLUP);
+
+// encoder pin on interrupt 0 (pin 2)
+  attachInterrupt(0, doEncoderA, CHANGE);
+
+// encoder pin on interrupt 1 (pin 3)
+  attachInterrupt(1, doEncoderB, CHANGE);  
+
   Serial.begin (9600);
 }
 
-// the loop function runs over and over again forever
-void loop() {
-   n = digitalRead(encoder0PinA);
-   if ((encoder0PinALast == LOW) && (n == HIGH)) {
-     if (digitalRead(encoder0PinB) == LOW) {
-       encoder0Pos--;
-     } else {
-       encoder0Pos++;
-     }
-     Serial.print (encoder0Pos);
-     Serial.println ("/");
-   } 
-   encoder0PinALast = n; 
-  if(encoder0Pos < (distance-40)){
-    forward();
+void loop(){ //Do stuff here 
+  Serial.println (encoder0Pos, DEC);      
+  delay(1000);
   }
-  if(encoder0Pos > (distance+40)){
-    backward();
+
+
+
+
+
+void doEncoderA(){
+
+  // look for a low-to-high on channel A
+  if (digitalRead(encoder0PinA) == HIGH) { 
+      
+      // check channel B to see which way encoder is turning
+      if (digitalRead(encoder0PinB) == LOW) {  
+        encoder0Pos = encoder0Pos + 1;         // CW
+      }else{
+        encoder0Pos = encoder0Pos - 1;         // CCW
+      }
+      
+  }else{    // must be a high-to-low edge on channel A  
+     
+      // check channel B to see which way encoder is turning  
+      if (digitalRead(encoder0PinB) == HIGH) {   
+        encoder0Pos = encoder0Pos + 1;          // CW
+      }else{
+        encoder0Pos = encoder0Pos - 1;          // CCW
+      }
   }
-  if(encoder0Pos<(distance-39) || encoder0Pos > (distance+39)){
-    digitalWrite(relay4, HIGH);
-  }
-  
+  Serial.println (encoder0Pos, DEC);          
+  // use for debugging - remember to comment out
 }
 
-void forward(){
+void doEncoderB(){
 
-  digitalWrite(relay4, HIGH);
-  digitalWrite(relay1, LOW);
-  digitalWrite(relay2, LOW);
-  digitalWrite(relay4, LOW);
-}
+  // look for a low-to-high on channel B
+  if (digitalRead(encoder0PinB) == HIGH) {   
 
-void backward(){
-
-  encoder0PinALast = n;
-  digitalWrite(relay4, HIGH);
-  digitalWrite(relay1, HIGH);
-  digitalWrite(relay2, HIGH);
-  digitalWrite(relay4, LOW);
-}
+     // check channel A to see which way encoder is turning
+      if (digitalRead(encoder0PinA) == HIGH) {  
+        encoder0Pos = encoder0Pos + 1;         // CW
+      }else{
+        encoder0Pos = encoder0Pos - 1;         // CCW
+      }
+      
+  }else{      // Look for a high-to-low on channel B
+    
+      // check channel B to see which way encoder is turning  
+      if (digitalRead(encoder0PinA) == LOW) {   
+        encoder0Pos = encoder0Pos + 1;          // CW
+      } 
+      else {
+        encoder0Pos = encoder0Pos - 1;          // CCW
+      }
+  }
+} 
